@@ -194,7 +194,7 @@
     });
     map.addLayer(cluster);
     map.on("moveend", () => { if (!located && !refMarker) { ref = map.getCenter(); renderNear(); } });
-    map.on("click", () => { closeDetail(); closeSearch(); });
+    map.on("click", () => { closeDetail(); closeSearch(); closeFilterMenu(); });
   }
 
   function buildMarkers() {
@@ -226,28 +226,45 @@
     } else {
       cluster.addLayers(visible);
     }
-    renderChips(); renderNear();
+    renderFilterMenu(); renderNear();
   }
 
   function setFilter(f) { filter = f; applyFilter(); }
 
-  function renderChips() {
-    const mineLabel = profile.allergies.length ? "Mes allergies" : "Mes allergies ?";
-    const items = [["mine", mineLabel], ["all", "Tous"], ["fort", "Potentiel fort"]];
-    if (filter.indexOf("sp:") === 0) items.push([filter, filter.slice(3)]);
-    $("#chips").innerHTML = items.map(([k, l]) =>
-      `<button type="button" class="chip glass" data-filter="${esc(k)}" aria-pressed="${filter === k}">${esc(l)}${k.indexOf("sp:") === 0 ? ' <span aria-hidden="true">×</span>' : ""}</button>`).join("");
+  const filterName = (f) => f === "mine" ? "Mes allergies" : f === "fort" ? "Potentiel fort" : f === "all" ? "Tous les arbres" : f.slice(3);
+  function renderFilterMenu() {
+    const myTrees = profile.allergies.filter((a) => HERBACEES.indexOf(a) === -1);
+    const items = [
+      ["mine", "Mes allergies", myTrees.length ? myTrees.join(", ") : "À indiquer dans votre profil"],
+      ["all", "Tous les arbres", "Potentiel fort et modéré"],
+      ["fort", "Potentiel fort", "Bouleau, frêne, charme, noisetier…"]
+    ];
+    if (filter.indexOf("sp:") === 0) items.push([filter, filter.slice(3), "Espèce choisie"]);
+    $("#filter-menu").innerHTML = "<p>Afficher</p>" + items.map(([k, l, d]) =>
+      `<button type="button" role="menuitemradio" data-filter="${esc(k)}" aria-checked="${filter === k}"><span><b>${esc(l)}</b><small>${esc(d)}</small></span><svg class="check" aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></button>`).join("");
+    const btn = $("#btn-filter");
+    btn.classList.toggle("filtered", filter !== "all");
+    btn.setAttribute("aria-label", "Filtres : " + filterName(filter));
   }
-
-  $("#chips").addEventListener("click", (e) => {
+  function closeFilterMenu() { $("#filter-menu").hidden = true; $("#btn-filter").setAttribute("aria-expanded", "false"); }
+  $("#btn-filter").addEventListener("click", (e) => {
+    e.stopPropagation();
+    const m = $("#filter-menu"), open = m.hidden;
+    if (open) { renderFilterMenu(); closeSearchPanel(); }
+    m.hidden = !open; $("#btn-filter").setAttribute("aria-expanded", String(open));
+    if (open) { const c = m.querySelector('[aria-checked="true"]'); if (c) c.focus(); }
+  });
+  $("#filter-menu").addEventListener("click", (e) => {
     const b = e.target.closest("button[data-filter]"); if (!b) return;
     const f = b.dataset.filter;
+    closeFilterMenu();
     if (f === "mine" && !profile.allergies.some((a) => HERBACEES.indexOf(a) === -1)) {
       toast("Indiquez d’abord vos arbres allergisants dans votre profil.");
       location.hash = "#profil"; return;
     }
-    setFilter(f.indexOf("sp:") === 0 && filter === f ? "all" : f);
+    setFilter(f);
   });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeFilterMenu(); closeSearchPanel(); } });
 
   $("#btn-heat").addEventListener("click", function () {
     heatOn = !heatOn; this.setAttribute("aria-pressed", String(heatOn));
@@ -289,7 +306,7 @@
     const total = list.reduce((a, g) => a + g.n, 0);
     const where = located ? "de vous" : refMarker ? "de l’adresse" : "du centre de la carte";
     $("#near-sub").textContent = total ? `${fmt(total)} arbre${total > 1 ? "s" : ""} à ${CONFIG.nearRadius} m` : "aucun arbre";
-    $("#near-where").textContent = `Dans un rayon de ${CONFIG.nearRadius} m ${where}.`;
+    $("#near-where").textContent = `${filterName(filter)} · rayon de ${CONFIG.nearRadius} m ${where}.`;
     $("#near-list").innerHTML = list.length ? list.slice(0, 4).map((g) => `
       <button type="button" class="near-row" data-tree="${g.tree.i}">
         <span class="dot mk-${potClass(g.niveau)}"></span>
@@ -380,7 +397,7 @@
     const add = e.target.closest("[data-add]");
     if (add) {
       profile.allergies.push(add.dataset.add); saveProfile();
-      toast(add.dataset.add + " ajouté à vos allergies."); closeDetail(); renderChips(); renderNear();
+      toast(add.dataset.add + " ajouté à vos allergies."); closeDetail(); renderFilterMenu(); renderNear();
     }
   });
 
@@ -390,6 +407,19 @@
   let searchTimer, searchSeq = 0;
   const norm = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
   function closeSearch() { $("#search-results").classList.remove("open"); }
+  function openSearchPanel() {
+    if ((location.hash || "#carte") !== "#carte") location.hash = "#carte";
+    closeFilterMenu(); closeDetail();
+    $("#search").classList.add("open"); $("#btn-search").setAttribute("aria-expanded", "true");
+    setTimeout(() => $("#search-input").focus(), 50);
+  }
+  function closeSearchPanel() {
+    closeSearch(); $("#search").classList.remove("open"); $("#btn-search").setAttribute("aria-expanded", "false");
+    $("#btn-search").classList.toggle("has-query", !!$("#search-input").value);
+  }
+  $("#btn-search").addEventListener("click", () => {
+    if ($("#search").classList.contains("open")) closeSearchPanel(); else openSearchPanel();
+  });
   $("#search-input").addEventListener("input", function () {
     const q = this.value.trim();
     $("#search").classList.toggle("has-value", !!q);
@@ -399,6 +429,8 @@
   });
   $("#search-clear").addEventListener("click", () => {
     $("#search-input").value = ""; $("#search").classList.remove("has-value"); closeSearch();
+    $("#btn-search").classList.remove("has-query");
+    if (filter.indexOf("sp:") === 0) setFilter(profile.allergies.some((a) => HERBACEES.indexOf(a) === -1) ? "mine" : "all");
     clearPlace(); if (!located) { ref = map.getCenter(); } renderNear();
   });
   async function runSearch(q) {
@@ -417,30 +449,19 @@
   }
   $("#search-results").addEventListener("click", (e) => {
     const b = e.target.closest("button"); if (!b) return;
-    closeSearch(); $("#search-input").blur();
-    if (b.dataset.sp) { $("#search-input").value = b.dataset.sp; setFilter("sp:" + b.dataset.sp); return; }
+    $("#search-input").blur();
+    if (b.dataset.sp) { $("#search-input").value = b.dataset.sp; $("#search").classList.add("has-value"); closeSearchPanel(); setFilter("sp:" + b.dataset.sp); return; }
     const [lat, lon] = b.dataset.ll.split(",").map(Number);
     $("#search-input").value = b.dataset.label;
     clearPlace(); located = false;
     ref = L.latLng(lat, lon);
     refMarker = L.marker(ref, { icon: L.divIcon({ className: "", html: '<div class="place-pin"></div>', iconSize: [18, 18] }), interactive: false }).addTo(map);
-    map.setView(ref, 17); renderNear();
+    map.setView(ref, 17); renderNear(); closeSearchPanel();
   });
 
   // ------------------------------------------------------------------
   // Bandeau Airparif (carte) et vue Alertes
   // ------------------------------------------------------------------
-  function renderAirparifCard() {
-    const today = pollen.days[0], n = dayIndex(today);
-    $("#airparif-card").setAttribute("aria-label", `Indice pollen Airparif aujourd’hui : ${LEVELS[n]}${pollen.demo ? " (démonstration)" : ""}`);
-    $("#airparif-card").innerHTML = `
-      <span class="k">Pollen</span>
-      <span class="v ink${n}">${LEVELS[n]}</span>
-      ${pollen.demo ? '<span class="pill pill-demo">Démo</span>' : ""}
-      <span class="scale-mini">${segs(n)}</span>
-      <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B5D50" stroke-width="2.4" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>`;
-  }
-
   function renderAlertes() {
     const today = pollen.days[0], n = dayIndex(today), cause = dayCause(today);
     const mine = myAirparif();
@@ -629,7 +650,6 @@
     if (name === "especes" && trees.length) renderEspeces();
     if (name === "profil") renderProfil();
     if (name === "carte") {
-      renderAirparifCard();
       if (map) {
         map.invalidateSize();
         const sig = profile.allergies.join("|");
@@ -656,7 +676,7 @@
     initSheet();
     route();
     initMap();
-    renderChips();
+    renderFilterMenu();
     await loadPollen();
     route();
     try {
