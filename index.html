@@ -65,12 +65,17 @@
     </div>
 
     <section class="sheet glass" id="near" aria-label="Près de vous">
-      <button type="button" class="grabber" id="near-toggle" aria-expanded="true" aria-label="Réduire ou agrandir"></button>
-      <div class="sheet-head">
-        <h2>Près de vous</h2>
-        <span id="near-sub"></span>
+      <button type="button" class="sheet-toggle" id="near-toggle" aria-expanded="true" aria-controls="near-body">
+        <span class="grabber" aria-hidden="true"></span>
+        <span class="sheet-head">
+          <h2>Près de vous</h2>
+          <span id="near-sub"></span>
+        </span>
+      </button>
+      <div id="near-body">
+        <p class="near-where" id="near-where"></p>
+        <div class="near-list" id="near-list"></div>
       </div>
-      <div class="near-list" id="near-list"></div>
     </section>
 
     <article class="detail" id="detail" aria-label="Fiche arbre" aria-hidden="true"></article>

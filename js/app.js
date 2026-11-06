@@ -182,12 +182,12 @@
     }).addTo(map);
     renderer = L.canvas({ padding: 0.5 });
     cluster = L.markerClusterGroup({
-      chunkedLoading: true, showCoverageOnHover: false, maxClusterRadius: 60, spiderfyOnMaxZoom: false,
+      chunkedLoading: true, showCoverageOnHover: false, maxClusterRadius: 80, spiderfyOnMaxZoom: false,
       disableClusteringAtZoom: 18,
       iconCreateFunction(c) {
         const kids = c.getAllChildMarkers(); let fort = 0, mine = 0;
         kids.forEach((m) => { if (m.options.tree.niveau === "fort") fort++; if (isMine(m.options.tree.nom)) mine++; });
-        const n = c.getChildCount(), size = Math.round(Math.min(64, 34 + Math.sqrt(n) * 2.2));
+        const n = c.getChildCount(), size = Math.round(Math.min(46, 28 + Math.sqrt(n) * 1.3));
         const cls = "cluster" + (fort * 2 >= n ? " fort" : "") + (mine && filter !== "mine" ? " mine" : "");
         return L.divIcon({ html: `<div class="${cls}" style="width:${size}px;height:${size}px">${fmt(n)}</div>`, className: "", iconSize: [size, size] });
       }
@@ -288,7 +288,8 @@
     const list = Object.values(groups).sort((a, b) => (isMine(b.nom) - isMine(a.nom)) || (a.d - b.d));
     const total = list.reduce((a, g) => a + g.n, 0);
     const where = located ? "de vous" : refMarker ? "de l’adresse" : "du centre de la carte";
-    $("#near-sub").textContent = total ? `${fmt(total)} arbre${total > 1 ? "s" : ""} à moins de ${CONFIG.nearRadius} m ${where}` : "";
+    $("#near-sub").textContent = total ? `${fmt(total)} arbre${total > 1 ? "s" : ""} à ${CONFIG.nearRadius} m` : "aucun arbre";
+    $("#near-where").textContent = `Dans un rayon de ${CONFIG.nearRadius} m ${where}.`;
     $("#near-list").innerHTML = list.length ? list.slice(0, 4).map((g) => `
       <button type="button" class="near-row" data-tree="${g.tree.i}">
         <span class="dot mk-${potClass(g.niveau)}"></span>
@@ -303,6 +304,7 @@
   });
   $("#near-toggle").addEventListener("click", function () {
     const s = $("#near"); const c = s.classList.toggle("collapsed"); this.setAttribute("aria-expanded", String(!c));
+    store.set("pp-near-collapsed", c);
   });
 
   // ------------------------------------------------------------------
@@ -430,15 +432,13 @@
   // ------------------------------------------------------------------
   function renderAirparifCard() {
     const today = pollen.days[0], n = dayIndex(today);
+    $("#airparif-card").setAttribute("aria-label", `Indice pollen Airparif aujourd’hui : ${LEVELS[n]}${pollen.demo ? " (démonstration)" : ""}`);
     $("#airparif-card").innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:2px">
-        <span class="k">Airparif · ${esc(pollen.commune)}, aujourd’hui${pollen.demo ? " · démo" : ""}</span>
-        <span class="v ink${n}">${LEVELS[n]}</span>
-      </div>
-      <div class="r">
-        <span class="scale-mini">${segs(n)}</span>
-        <span>${n > 1 ? "dû " + esc(article(dayCause(today))).replace(/^à l’/, "à l’").replace(/^au /, "au ") : "tous pollens"}</span>
-      </div>`;
+      <span class="k">Pollen</span>
+      <span class="v ink${n}">${LEVELS[n]}</span>
+      ${pollen.demo ? '<span class="pill pill-demo">Démo</span>' : ""}
+      <span class="scale-mini">${segs(n)}</span>
+      <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B5D50" stroke-width="2.4" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>`;
   }
 
   function renderAlertes() {
@@ -642,8 +642,18 @@
   // ------------------------------------------------------------------
   // Démarrage
   // ------------------------------------------------------------------
+  function initSheet() {
+    const s = $("#near"), saved = store.get("pp-near-collapsed", null);
+    const collapse = saved === null ? window.innerHeight < 760 : saved;
+    if (collapse) { s.classList.add("collapsed"); $("#near-toggle").setAttribute("aria-expanded", "false"); }
+    const sync = () => document.documentElement.style.setProperty("--sheet-h", s.offsetHeight + "px");
+    if ("ResizeObserver" in window) new ResizeObserver(sync).observe(s); else window.addEventListener("resize", sync);
+    sync();
+  }
+
   async function start() {
     renderAvatar();
+    initSheet();
     route();
     initMap();
     renderChips();
