@@ -193,7 +193,6 @@
       }
     });
     map.addLayer(cluster);
-    map.on("moveend", () => { if (!located && !refMarker) { ref = map.getCenter(); renderNear(); } });
     map.on("click", () => { closeDetail(); closeSearch(); closeFilterMenu(); });
   }
 
@@ -226,7 +225,7 @@
     } else {
       cluster.addLayers(visible);
     }
-    renderFilterMenu(); renderNear();
+    renderFilterMenu();
   }
 
   function setFilter(f) { filter = f; applyFilter(); }
@@ -281,7 +280,7 @@
         meCircle = L.circle(ll, { radius: p.coords.accuracy, color: "#0A84FF", weight: 1, fillColor: "#0A84FF", fillOpacity: 0.12, interactive: false }).addTo(map);
         meMarker = L.marker(ll, { icon: L.divIcon({ className: "", html: '<div class="me-dot"></div>', iconSize: [18, 18] }), interactive: false }).addTo(map);
       } else { meMarker.setLatLng(ll); meCircle.setLatLng(ll).setRadius(p.coords.accuracy); }
-      map.setView(ll, 17); renderNear();
+      map.setView(ll, 17);
     }, (err) => toast("Position introuvable : " + err.message), { enableHighAccuracy: true, timeout: 10000 });
   });
 
@@ -290,40 +289,6 @@
   // ------------------------------------------------------------------
   // Près de vous
   // ------------------------------------------------------------------
-  function renderNear() {
-    if (!trees.length) return;
-    const p = ref || map.getCenter();
-    const groups = {};
-    const dLat = CONFIG.nearRadius / 111000, dLon = dLat / Math.cos(p.lat * Math.PI / 180);
-    trees.forEach((t) => {
-      if (Math.abs(t.lat - p.lat) > dLat || Math.abs(t.lon - p.lng) > dLon) return;
-      if (!matches(t)) return;
-      const d = distance(p.lat, p.lng, t.lat, t.lon); if (d > CONFIG.nearRadius) return;
-      const g = groups[t.nom] || (groups[t.nom] = { nom: t.nom, niveau: t.niveau, n: 0, d: Infinity, tree: null });
-      g.n++; if (d < g.d) { g.d = d; g.tree = t; }
-    });
-    const list = Object.values(groups).sort((a, b) => (isMine(b.nom) - isMine(a.nom)) || (a.d - b.d));
-    const total = list.reduce((a, g) => a + g.n, 0);
-    const where = located ? "de vous" : refMarker ? "de l’adresse" : "du centre de la carte";
-    $("#near-sub").textContent = total ? `${fmt(total)} arbre${total > 1 ? "s" : ""} à ${CONFIG.nearRadius} m` : "aucun arbre";
-    $("#near-where").textContent = `${filterName(filter)} · rayon de ${CONFIG.nearRadius} m ${where}.`;
-    $("#near-list").innerHTML = list.length ? list.slice(0, 4).map((g) => `
-      <button type="button" class="near-row" data-tree="${g.tree.i}">
-        <span class="dot mk-${potClass(g.niveau)}"></span>
-        <span class="n">${esc(g.nom)}${isMine(g.nom) ? '<span class="pill pill-mine">Votre allergie</span>' : ""}</span>
-        <span class="d">${g.n} · ${fmtDist(g.d)}</span>
-      </button>`).join("")
-      : `<p class="near-empty">Aucun arbre de ce filtre à moins de ${CONFIG.nearRadius} m ${where}.</p>`;
-  }
-  $("#near-list").addEventListener("click", (e) => {
-    const b = e.target.closest("[data-tree]"); if (!b) return;
-    const t = trees[+b.dataset.tree]; map.setView([t.lat, t.lon], 18); openDetail(t);
-  });
-  $("#near-toggle").addEventListener("click", function () {
-    const s = $("#near"); const c = s.classList.toggle("collapsed"); this.setAttribute("aria-expanded", String(!c));
-    store.set("pp-near-collapsed", c);
-  });
-
   // ------------------------------------------------------------------
   // Fiche arbre
   // ------------------------------------------------------------------
@@ -385,11 +350,10 @@
           Itinéraire</a>
       </div>`;
     const d = $("#detail"); d.classList.add("open"); d.setAttribute("aria-hidden", "false");
-    $("#near").style.visibility = "hidden";
   }
   function closeDetail() {
     const d = $("#detail"); if (!d.classList.contains("open")) return;
-    d.classList.remove("open"); d.setAttribute("aria-hidden", "true"); $("#near").style.visibility = "";
+    d.classList.remove("open"); d.setAttribute("aria-hidden", "true");
   }
   $("#detail").addEventListener("click", (e) => {
     if (e.target.closest("[data-close]")) closeDetail();
@@ -397,7 +361,7 @@
     const add = e.target.closest("[data-add]");
     if (add) {
       profile.allergies.push(add.dataset.add); saveProfile();
-      toast(add.dataset.add + " ajouté à vos allergies."); closeDetail(); renderFilterMenu(); renderNear();
+      toast(add.dataset.add + " ajouté à vos allergies."); closeDetail(); renderFilterMenu();
     }
   });
 
@@ -431,7 +395,7 @@
     $("#search-input").value = ""; $("#search").classList.remove("has-value"); closeSearch();
     $("#btn-search").classList.remove("has-query");
     if (filter.indexOf("sp:") === 0) setFilter(profile.allergies.some((a) => HERBACEES.indexOf(a) === -1) ? "mine" : "all");
-    clearPlace(); if (!located) { ref = map.getCenter(); } renderNear();
+    clearPlace(); if (!located) { ref = null; }
   });
   async function runSearch(q) {
     const seq = ++searchSeq, nq = norm(q);
@@ -456,7 +420,7 @@
     clearPlace(); located = false;
     ref = L.latLng(lat, lon);
     refMarker = L.marker(ref, { icon: L.divIcon({ className: "", html: '<div class="place-pin"></div>', iconSize: [18, 18] }), interactive: false }).addTo(map);
-    map.setView(ref, 17); renderNear(); closeSearchPanel();
+    map.setView(ref, 17); closeSearchPanel();
   });
 
   // ------------------------------------------------------------------
@@ -662,18 +626,8 @@
   // ------------------------------------------------------------------
   // Démarrage
   // ------------------------------------------------------------------
-  function initSheet() {
-    const s = $("#near"), saved = store.get("pp-near-collapsed", null);
-    const collapse = saved === null ? window.innerHeight < 760 : saved;
-    if (collapse) { s.classList.add("collapsed"); $("#near-toggle").setAttribute("aria-expanded", "false"); }
-    const sync = () => document.documentElement.style.setProperty("--sheet-h", s.offsetHeight + "px");
-    if ("ResizeObserver" in window) new ResizeObserver(sync).observe(s); else window.addEventListener("resize", sync);
-    sync();
-  }
-
   async function start() {
     renderAvatar();
-    initSheet();
     route();
     initMap();
     renderFilterMenu();
