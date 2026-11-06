@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paris Allergy Tree Map</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { margin: 0; padding: 0; font-family: sans-serif; }
+        #map { height: 100vh; width: 100vw; }
+        
+        .info-panel {
+            position: absolute;
+            top: 10px;
+            left: 50px;
+            z-index: 1000;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            max-width: 250px;
+        }
+
+        .legend {
+            margin-top: 10px;
+            font-size: 12px;
+        }
+
+        .legend-item { display: flex; align-items: center; margin-bottom: 4px; }
+        .dot { height: 12px; width: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+        
+        .high { background-color: #ff4d4d; }
+        .mod { background-color: #ffa500; }
+        .low { background-color: #2ecc71; }
+
+        #status { font-weight: bold; color: #2c3e50; }
+    </style>
+</head>
+<body>
+
+    <div class="info-panel">
+        <h3>🌳 Tree Allergy Map</h3>
+        <div id="status">Locating you...</div>
+        <div class="legend">
+            <div class="legend-item"><span class="dot high"></span> High Allergen (Birch, Ash)</div>
+            <div class="legend-item"><span class="dot mod"></span> Moderate (Plane, Oak)</div>
+            <div class="legend-item"><span class="dot low"></span> Low/Minor</div>
+        </div>
+        <p style="font-size: 10px; color: #666;">Showing trees within 500m.</p>
+    </div>
+
+    <div id="map"></div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // 1. Define Tree Allergen Risks (Scientific names from Paris Data)
+        const treeRiskMap = {
+            'Betula': { level: 'High', color: '#ff4d4d' },    // Birch
+            'Fraxinus': { level: 'High', color: '#ff4d4d' },  // Ash
+            'Alnus': { level: 'High', color: '#ff4d4d' },     // Alder
+            'Corylus': { level: 'High', color: '#ff4d4d' },   // Hazel
+            'Platanus': { level: 'Moderate', color: '#ffa500' }, // Plane (Very common in Paris)
+            'Quercus': { level: 'Moderate', color: '#ffa500' },  // Oak
+            'Acer': { level: 'Moderate', color: '#ffa500' },     // Maple
+            'Carpinus': { level: 'Moderate', color: '#ffa500' }, // Hornbeam
+            'Tilia': { level: 'Low', color: '#2ecc71' },      // Linden
+            'Prunus': { level: 'Low', color: '#2ecc71' },     // Cherry/Plum
+            'Ginkgo': { level: 'Low', color: '#2ecc71' },
+            'Pinus': { level: 'Low', color: '#2ecc71' }
+        };
+
+        // 2. Initialize Map
+        const map = L.map('map').setView([48.8566, 2.3522], 13); // Default to Paris center
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // 3. Get User Location
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(position => {
+                const { latitude, longitude } = position.coords;
+                map.setView([latitude, longitude], 16);
+                
+                // Add a marker for the user
+                L.marker([latitude, longitude]).addTo(map)
+                    .bindPopup("<b>You are here</b>").openPopup();
+
+                fetchTrees(latitude, longitude);
+            }, () => {
+                document.getElementById('status').innerText = "Location access denied. Showing Châtelet.";
+                fetchTrees(48.8584, 2.3488);
+            });
+        }
+
+        // 4. Fetch Data from Paris Open Data API
+        async function fetchTrees(lat, lng) {
+            document.getElementById('status').innerText = "Searching for trees...";
+            
+            // Query trees within 500 meters
+            const radius = 500;
+            const url = `https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/les-arbres/records?where=within_distance(geo_point_2d%2C%20geom'POINT(${lng}%20${lat})'%2C%20${radius}m)&limit=100`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                renderTrees(data.results);
+                document.getElementById('status').innerText = `Found ${data.results.length} trees nearby.`;
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                document.getElementById('status').innerText = "Error loading tree data.";
+            }
+        }
+
+        // 5. Render Trees on Map
+        function renderTrees(trees) {
+            trees.forEach(tree => {
+                const genus = tree.genre; // e.g., "Platanus"
+                const risk = treeRiskMap[genus] || { level: 'Unknown', color: '#95a5a6' };
+                
+                // Create a circle marker for each tree
+                L.circleMarker([tree.geo_point_2d.lat, tree.geo_point_2d.lon], {
+                    radius: 8,
+                    fillColor: risk.color,
+                    color: "#fff",
+                    weight: 1,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                })
+                .addTo(map)
+                .bindPopup(`
+                    <strong>${tree.libelle_francais || 'Unknown Tree'}</strong><br>
+                    Genus: <i>${genus}</i><br>
+                    Allergy Risk: <b>${risk.level}</b><br>
+                    Address: ${tree.adresse}
+                `);
+            });
+        }
+    </script>
+</body>
+</html>
