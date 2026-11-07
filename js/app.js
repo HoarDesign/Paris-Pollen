@@ -366,7 +366,7 @@
         <a class="tile lv${ap}" href="#alertes">
           <span class="k">Pollen aujourd’hui</span>
           <span class="v">${LEVELS[ap]}</span>
-          <span class="s">Airparif · ${ap} sur 6${pollen.demo ? " (démo)" : ""}</span>
+          <span class="s">Airparif${pollen.demo ? " (démo)" : ""}</span>
         </a>` : `
         <div class="tile lv0">
           <span class="k">Pollen aujourd’hui</span>
@@ -479,7 +479,7 @@
 
     const days = pollen.days.slice(1, 4).map((d, i) => {
       const k = dayIndex(d);
-      return `<div class="day lv${k}"><span>${dayLabel(d.date, i + 1)}</span><b>${LEVELS[k]}</b><small>${k} sur 6</small></div>`;
+      return `<div class="day lv${k}"><span>${dayLabel(d.date, i + 1)}</span><b>${LEVELS[k]}</b></div>`;
     }).join("");
     const taxa = AIRPARIF_TAXA.slice().sort((a, b) => (today.taxa[b] || 0) - (today.taxa[a] || 0)).map((t) => {
       const v = today.taxa[t] || 0;
@@ -492,7 +492,7 @@
         ${pollen.demo ? '<span class="pill pill-demo">Démo</span>' : ""}
       </div>
       <section class="card card-pad" style="display:flex;flex-direction:column;gap:14px" aria-label="Indice du jour">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:14px;color:var(--muted)"><span>Indice pollen aujourd’hui</span><span>${n} sur 6</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:14px;color:var(--muted)"><span>Indice pollen aujourd’hui</span></div>
         <div class="big-level ink${n}">${LEVELS[n]}</div>
         <div class="scale">${segs(n)}</div>
         <div class="scale-ends"><span>Très faible</span><span>Extrêmement élevé</span></div>
