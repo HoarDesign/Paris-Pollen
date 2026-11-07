@@ -141,7 +141,7 @@ h1, h2, h3, p { margin: 0; }
 /* ---------- Carte ---------- */
 #map { position: absolute; inset: 0; background: var(--map-ground); }
 .leaflet-container { font-family: var(--font); background: var(--map-ground); }
-.leaflet-tile-pane { filter: sepia(0.22) saturate(0.85) brightness(1.03); }
+.osm-tiles { filter: sepia(0.22) saturate(0.85) brightness(1.03); }
 .leaflet-control-attribution { font-size: 11px; background: rgba(255, 255, 255, 0.7) !important; }
 .leaflet-bottom.leaflet-right { bottom: calc(var(--tabbar-space) - 20px); }
 

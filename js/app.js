@@ -175,11 +175,51 @@
   let filter = profile.allergies.some((a) => HERBACEES.indexOf(a) === -1) ? "mine" : "all";
   let ref = null, refMarker = null, meMarker = null, meCircle = null, located = false;
 
-  function initMap() {
-    map = L.map("map", { zoomControl: false, preferCanvas: true }).setView(CONFIG.center, 14);
+  // Fond de carte épuré : OpenFreeMap (vectoriel, sans clé), sans bâtiments, aux couleurs de l'app.
+  // Repli sur OpenStreetMap si WebGL ou le style ne sont pas disponibles.
+  const BASEMAP = {
+    style: "https://tiles.openfreemap.org/styles/positron",
+    hide: /building|housenumber|aeroway|poi|transit|railway|bridge_rail|tunnel_rail|ferry|boundary/,
+    colors: { background: "#F3EADB", water: "#B7D9E6", park: "#D9EAC2", road: "#FFFFFF", roadCase: "#E9DCC8", label: "#6B5D50", labelHalo: "#F7EFE3" }
+  };
+  function osmFallback() {
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      maxZoom: 19, className: "osm-tiles", attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(map);
+  }
+  function tuneStyle(style) {
+    const c = BASEMAP.colors;
+    style.layers = style.layers.filter((l) => !BASEMAP.hide.test(l.id) && l["source-layer"] !== "building");
+    style.layers.forEach((l) => {
+      const id = l.id, p = l.paint = l.paint || {};
+      if (l.type === "background") p["background-color"] = c.background;
+      else if (l.type === "fill" && /water/.test(id)) p["fill-color"] = c.water;
+      else if (l.type === "fill" && /park|wood|grass|landcover|cemetery|pitch|garden/.test(id)) { p["fill-color"] = c.park; p["fill-opacity"] = 1; }
+      else if (l.type === "fill" && /landuse|residential|commercial|industrial|hospital|school/.test(id)) { p["fill-color"] = c.background; }
+      else if (l.type === "line" && /waterway|river/.test(id)) p["line-color"] = c.water;
+      else if (l.type === "line" && /casing/.test(id)) p["line-color"] = c.roadCase;
+      else if (l.type === "line" && /highway|road|street|path|minor|major|motorway|trunk|primary|secondary|tertiary/.test(id)) p["line-color"] = c.road;
+      else if (l.type === "symbol") { p["text-color"] = c.label; p["text-halo-color"] = c.labelHalo; }
+    });
+    return style;
+  }
+  async function addBasemap() {
+    let webgl = false;
+    try { const cv = document.createElement("canvas"); webgl = !!(cv.getContext("webgl2") || cv.getContext("webgl")); } catch (e) { /* pas de WebGL */ }
+    if (!L.maplibreGL || !window.maplibregl || !webgl) { osmFallback(); return; }
+    try {
+      const r = await fetch(BASEMAP.style); if (!r.ok) throw new Error(r.status);
+      const style = tuneStyle(await r.json());
+      L.maplibreGL({
+        style, interactive: false,
+        attributionControl: { customAttribution: '<a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> &copy; <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>' }
+      }).addTo(map);
+    } catch (e) { osmFallback(); }
+  }
+
+  function initMap() {
+    map = L.map("map", { zoomControl: false, preferCanvas: true, maxZoom: 19, minZoom: 11 }).setView(CONFIG.center, 14);
+    addBasemap();
     renderer = L.canvas({ padding: 0.5 });
     cluster = L.markerClusterGroup({
       chunkedLoading: true, showCoverageOnHover: false, maxClusterRadius: 80, spiderfyOnMaxZoom: false,
