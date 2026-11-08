@@ -306,12 +306,14 @@
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeFilterMenu(); closeSearchPanel(); } });
 
   $("#btn-heat").addEventListener("click", function () {
+    closeFilterMenu();
     heatOn = !heatOn; this.setAttribute("aria-pressed", String(heatOn));
     this.setAttribute("aria-label", heatOn ? "Afficher les arbres" : "Afficher la densité");
     applyFilter();
   });
 
   $("#btn-locate").addEventListener("click", () => {
+    closeFilterMenu();
     if (!navigator.geolocation) { toast("La géolocalisation n’est pas disponible sur cet appareil."); return; }
     navigator.geolocation.getCurrentPosition((p) => {
       const ll = L.latLng(p.coords.latitude, p.coords.longitude);
