@@ -22,12 +22,12 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
   <link rel="stylesheet" href="css/MarkerCluster.css">
-  <link rel="stylesheet" href="css/app.css?v=12">
+  <link rel="stylesheet" href="css/app.css?v=13">
 </head>
 <body>
 
   <!-- ÉCRAN D'ACCUEIL (masqué par js/app.js quand la carte est prête) -->
-  <div class="splash" id="splash" role="status" aria-live="polite">
+  <div class="splash" id="splash" aria-label="Paris Pollens, chargement">
     <div class="splash-inner">
       <span class="splash-mark" aria-hidden="true">
         <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#1F3A00" stroke-width="2.2" stroke-linecap="round"><path d="M5 19c0-8 6-14 15-14 0 9-6 15-14 15"/><path d="M5 19l7-7"/></svg>
@@ -35,8 +35,8 @@
       <h1 class="splash-name">Paris Pollens</h1>
       <p class="splash-tagline">Les arbres allergisants de Paris</p>
     </div>
-    <div class="splash-progress" aria-hidden="true"><span></span></div>
-    <p class="splash-status" id="splash-status">Chargement des arbres…</p>
+    <div class="splash-progress" role="progressbar" aria-label="Chargement des arbres" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
+    <p class="splash-status" id="splash-status" aria-hidden="true">Chargement des arbres…</p>
   </div>
   <script>
     // Filet de sécurité : si l'app ne démarre pas (réseau, erreur JS), on ne reste pas bloqué sur l'accueil.
@@ -130,6 +130,6 @@
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
   <script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.3/leaflet-maplibre-gl.js"></script>
   <script src="js/leaflet.markercluster.js"></script>
-  <script src="js/app.js?v=12"></script>
+  <script src="js/app.js?v=13"></script>
 </body>
 </html>

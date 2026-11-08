@@ -21,7 +21,6 @@
   // pendant que l'écran d'accueil est affiché.
   const treesReq = fetch(CONFIG.dataUrl);
   treesReq.catch(() => {});
-  const splashStart = performance.now();
 
   // Genres allergisants (potentiel RNSA) ; mois de pollinisation approximatifs (0 = janvier)
   const GENRES = {
@@ -674,15 +673,36 @@
   // ------------------------------------------------------------------
   // Démarrage
   // ------------------------------------------------------------------
-  // Écran d'accueil : affiché au moins ~1 s pour ne pas clignoter, puis fondu.
-  function hideSplash() {
-    const s = $("#splash"); if (!s) return;
-    const wait = Math.max(0, 1000 - (performance.now() - splashStart));
-    setTimeout(() => {
-      s.classList.add("hide");
-      setTimeout(() => s.remove(), 600);
-    }, wait);
-  }
+  // Écran d'accueil : affiché au moins SPLASH_MIN ms (compté depuis l'ouverture de la page),
+  // avec une barre de progression qui avance avec le temps et se termine quand les arbres sont prêts.
+  const SPLASH_MIN = 4000;
+  let splashDone = false;
+  (function runSplash() {
+    const s = $("#splash"), bar = s && s.querySelector(".splash-progress");
+    if (!s || !bar) return;
+    const fill = bar.firstElementChild;
+    let shown = 0, closing = false;
+    function frame() {
+      const t = performance.now();       // ms depuis le début du chargement de la page
+      const timeP = Math.min(1, t / SPLASH_MIN);
+      let target;
+      if (splashDone) target = timeP;     // prêt : on finit au rythme de la durée minimale
+      else if (t < SPLASH_MIN) target = 0.9 * timeP;
+      else target = 0.9 + 0.08 * (1 - Math.exp(-(t - SPLASH_MIN) / 4000)); // chargement lent : on approche 98 % sans l'atteindre
+      shown = Math.max(shown, target);
+      fill.style.transform = "scaleX(" + shown.toFixed(4) + ")";
+      bar.setAttribute("aria-valuenow", String(Math.round(shown * 100)));
+      if (splashDone && t >= SPLASH_MIN && !closing) {
+        closing = true;
+        fill.style.transform = "scaleX(1)"; bar.setAttribute("aria-valuenow", "100");
+        setTimeout(() => { s.classList.add("hide"); setTimeout(() => s.remove(), 600); }, 250);
+        return;
+      }
+      if (s.isConnected) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  })();
+  function hideSplash() { splashDone = true; }
 
   async function start() {
     renderAvatar();
