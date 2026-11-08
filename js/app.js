@@ -17,6 +17,12 @@
     center: [48.8566, 2.3522]
   };
 
+  // Téléchargement lancé dès le chargement du script (et déjà amorcé par le <link rel="preload">),
+  // pendant que l'écran d'accueil est affiché.
+  const treesReq = fetch(CONFIG.dataUrl);
+  treesReq.catch(() => {});
+  const splashStart = performance.now();
+
   // Genres allergisants (potentiel RNSA) ; mois de pollinisation approximatifs (0 = janvier)
   const GENRES = {
     "BETULA":            { nom: "Bouleau",         niveau: "fort",   mois: [2, 3, 4], airparif: "Bouleau" },
@@ -156,7 +162,7 @@
   const counts = {};     // nom -> nombre
 
   async function loadTrees() {
-    const r = await fetch(CONFIG.dataUrl);
+    const r = await treesReq;
     if (!r.ok) throw new Error("Données introuvables (" + r.status + ")");
     const d = await r.json();
     trees = d.trees.map((t, i) => {
@@ -668,6 +674,16 @@
   // ------------------------------------------------------------------
   // Démarrage
   // ------------------------------------------------------------------
+  // Écran d'accueil : affiché au moins ~1 s pour ne pas clignoter, puis fondu.
+  function hideSplash() {
+    const s = $("#splash"); if (!s) return;
+    const wait = Math.max(0, 1000 - (performance.now() - splashStart));
+    setTimeout(() => {
+      s.classList.add("hide");
+      setTimeout(() => s.remove(), 600);
+    }, wait);
+  }
+
   async function start() {
     renderAvatar();
     route();
@@ -681,9 +697,11 @@
       lastAllergies = profile.allergies.join("|");
       applyFilter();
       $("#loading").remove();
+      hideSplash();
       if (location.hash === "#especes") renderEspeces();
     } catch (e) {
       $("#loading").textContent = "Impossible de charger les arbres. Ouvrez l’app depuis un serveur web (pas en double-cliquant le fichier).";
+      hideSplash();
     }
     maybeNotify();
   }
