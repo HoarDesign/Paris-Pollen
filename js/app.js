@@ -554,10 +554,15 @@
     Object.keys(GENRES).forEach((g) => { const i = GENRES[g]; names[i.nom] = i; });
     const row = (nom) => {
       const i = names[nom];
-      const months = MOIS_COURT.map((_, m) => `<span class="${i.mois.indexOf(m) !== -1 ? "mk-" + potClass(i.niveau) : "mk0"}"></span>`).join("");
+      const now = new Date().getMonth(), pc = potClass(i.niveau);
+      const months = MOIS_COURT.map((l, m) => {
+        const on = i.mois.indexOf(m) !== -1;
+        return `<span class="m${on ? " on " + pc : ""}${m === now ? " now" : ""}"><i class="${on ? "mk-" + pc : "mk0"}"></i><small>${l}</small></span>`;
+      }).join("");
+      const range = "Pollinisation " + (i.mois.length > 1 ? "de " + MOIS_LONG[i.mois[0]] + " à " + MOIS_LONG[i.mois[i.mois.length - 1]] : "en " + MOIS_LONG[i.mois[0]]);
       return `<button type="button" class="species-row" data-sp="${esc(nom)}">
         <span class="top"><span class="nm"><b>${esc(nom)}</b><small>${esc(LATIN[nom])}</small>${isMine(nom) ? '<span class="pill pill-mine">Vous</span>' : ""}</span><span class="c">${fmt(counts[nom] || 0)}</span></span>
-        <span class="months">${months}</span></button>`;
+        <span class="months" role="img" aria-label="${range}">${months}</span></button>`;
     };
     const group = (niv, title) => {
       const list = Object.keys(names).filter((n) => names[n].niveau === niv && counts[n]).sort((a, b) => counts[b] - counts[a]);
@@ -572,7 +577,7 @@
       </div>
       ${spFilter !== "Modéré" ? group("fort", "Potentiel fort") : ""}
       ${spFilter !== "Fort" ? group("modéré", "Potentiel modéré") : ""}
-      <p class="note">Potentiel allergisant : RNSA. Effectifs : inventaire « Les arbres », Paris Open Data. La frise montre la pollinisation de janvier à décembre. Touchez une espèce pour l’afficher sur la carte.</p>`;
+      <p class="note">Potentiel allergisant : RNSA. Effectifs : inventaire « Les arbres », Paris Open Data. La frise montre les mois de pollinisation, le mois en cours est entouré. Touchez une espèce pour l’afficher sur la carte.</p>`;
   }
   $("#especes-body").addEventListener("click", (e) => {
     const s = e.target.closest("[data-seg]"); if (s) { spFilter = s.dataset.seg; renderEspeces(); return; }
