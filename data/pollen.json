@@ -1,20 +1,9 @@
 {
   "commune": "Paris",
   "code_zone": "75056",
-  "updated": "2026-11-12T18:58+00:00",
+  "updated": "2026-11-13T18:33+00:00",
   "source": "Atmo France / Airparif — indice pollen communal (ODbL)",
   "days": [
-    {
-      "date": "2026-11-12",
-      "taxa": {
-        "Aulne": 1,
-        "Bouleau": 1,
-        "Olivier": 1,
-        "Graminées": 1,
-        "Armoise": 1,
-        "Ambroisie": 1
-      }
-    },
     {
       "date": "2026-11-13",
       "taxa": {
@@ -28,6 +17,17 @@
     },
     {
       "date": "2026-11-14",
+      "taxa": {
+        "Aulne": 1,
+        "Bouleau": 1,
+        "Olivier": 1,
+        "Graminées": 1,
+        "Armoise": 1,
+        "Ambroisie": 1
+      }
+    },
+    {
+      "date": "2026-11-15",
       "taxa": {
         "Aulne": 1,
         "Bouleau": 1,
